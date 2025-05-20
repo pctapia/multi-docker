@@ -1,0 +1,44 @@
+name: Deploy MultiDocker
+on:
+  push:
+    branches:
+      - main # check your repo, your default branch might be master!
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      # Login to Docker Hub
+      - run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+      - run: docker build -t pctapia/react-test-up -f ./client/Dockerfile.dev ./client
+      - run: docker run -e CI=true pctapia/react-test-up npm test
+
+      # Build and push Docker images
+      - name: Build and push Docker images
+        run: |
+          docker build -t pctapia/multi-client-up ./client
+          docker build -t pctapia/multi-nginx-up ./nginx
+          docker build -t pctapia/multi-server-up ./server
+          docker build -t pctapia/multi-worker-up ./worker
+
+          docker push pctapia/multi-client-up
+          docker push pctapia/multi-nginx-up
+          docker push pctapia/multi-server-up
+          docker push pctapia/multi-worker-up
+
+      # Deploy to AWS Elastic Beanstalk
+      - name: Generate deployment package
+        run: zip -r deploy.zip . -x '*.git*'
+
+      - name: Deploy to EB
+        uses: einaregilsson/beanstalk-deploy@v18
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_KEY }}
+          application_name: multi-docker
+          environment_name: Multi-docker-env
+          existing_bucket_name: elasticbeanstalk-us-east-1-923445559289
+          region: us-east-1
+          version_label: ${{ github.sha }}
+          deployment_package: deploy.zip
