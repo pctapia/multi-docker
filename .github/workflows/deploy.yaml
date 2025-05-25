@@ -11,21 +11,21 @@ jobs:
       - uses: actions/checkout@v3
       # Login to Docker Hub
       - run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
-      - run: docker build -t pctapia/react-test-up -f ./client/Dockerfile.dev ./client
-      - run: docker run -e CI=true pctapia/react-test-up npm test -- --coverage
+      - run: docker build -t pctapia/react-test -f ./client/Dockerfile.dev ./client
+      - run: docker run -e CI=true pctapia/react-test npm test -- --coverage
 
       # Build and push Docker images
       - name: Build and push Docker images
         run: |
-          docker build -t pctapia/multi-client-up ./client
-          docker build -t pctapia/multi-nginx-up ./nginx
-          docker build -t pctapia/multi-server-up ./server
-          docker build -t pctapia/multi-worker-up ./worker
+          docker build -t pctapia/multi-client ./client
+          docker build -t pctapia/multi-nginx ./nginx
+          docker build -t pctapia/multi-server ./server
+          docker build -t pctapia/multi-worker ./worker
 
-          docker push pctapia/multi-client-up
-          docker push pctapia/multi-nginx-up
-          docker push pctapia/multi-server-up
-          docker push pctapia/multi-worker-up
+          docker push pctapia/multi-client
+          docker push pctapia/multi-nginx
+          docker push pctapia/multi-server
+          docker push pctapia/multi-worker
 
       #Deploy to AWS Elastic Beanstalk
       - name: Generate deployment package
