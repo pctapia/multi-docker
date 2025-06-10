@@ -9,31 +9,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
-      - run: docker build -t rallycoding/react-test -f ./client/Dockerfile.dev ./client
-      - run: docker run -e CI=true rallycoding/react-test npm test
+      # Login to Docker Hub
+      - run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+      - run: docker build -t pctapia/react-test -f ./client/Dockerfile.dev ./client
+      - run: docker run -e CI=true pctapia/react-test npm test -- --coverage
 
-      - run: docker build -t rallycoding/multi-client ./client
-      - run: docker build -t rallycoding/multi-nginx ./nginx
-      - run: docker build -t rallycoding/multi-server ./server
-      - run: docker build -t rallycoding/multi-worker ./worker
+      # Build and push Docker images
+      - name: Build and push Docker images
+        run: |
+          docker build -t pctapia/multi-client ./client
+          docker build -t pctapia/multi-nginx ./nginx
+          docker build -t pctapia/multi-server ./server
+          docker build -t pctapia/multi-worker ./worker
 
-      - run: docker push rallycoding/multi-client
-      - run: docker push rallycoding/multi-nginx
-      - run: docker push rallycoding/multi-server
-      - run: docker push rallycoding/multi-worker
+          docker push pctapia/multi-client
+          docker push pctapia/multi-nginx
+          docker push pctapia/multi-server
+          docker push pctapia/multi-worker
 
+      #Deploy to AWS Elastic Beanstalk
       - name: Generate deployment package
         run: zip -r deploy.zip . -x '*.git*'
+        #run: zip deploy.zip docker-compose.yml
 
       - name: Deploy to EB
         uses: einaregilsson/beanstalk-deploy@v18
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY }}
           aws_secret_key: ${{ secrets.AWS_SECRET_KEY }}
-          application_name: multi-gh
-          environment_name: Multigh-env
-          existing_bucket_name: elasticbeanstalk-us-east-1-923445559289
-          region: us-east-1
+          application_name: multi-docker-app
+          environment_name: Multi-docker-app-env
+          existing_bucket_name: elasticbeanstalk-eu-north-1-927644637321
+          region: eu-north-1
           version_label: ${{ github.sha }}
           deployment_package: deploy.zip
